@@ -1,8 +1,8 @@
-#include <uWS/uWS.h>
-#include <iostream>
 #include "json.hpp"
-#include <math.h>
 #include "particle_filter.h"
+#include <iostream>
+#include <math.h>
+#include <uWS/uWS.h>
 
 using namespace std;
 
@@ -17,12 +17,9 @@ std::string hasData(std::string s)
     auto found_null = s.find("null");
     auto b1 = s.find_first_of("[");
     auto b2 = s.find_first_of("]");
-    if (found_null != std::string::npos)
-    {
+    if (found_null != std::string::npos) {
         return "";
-    }
-    else if (b1 != std::string::npos && b2 != std::string::npos)
-    {
+    } else if (b1 != std::string::npos && b2 != std::string::npos) {
         return s.substr(b1, b2 - b1 + 1);
     }
     return "";
@@ -33,16 +30,15 @@ int main()
     uWS::Hub h;
 
     //Set up parameters here
-    double delta_t = 0.1;     // Time elapsed between measurements [sec]
+    double delta_t = 0.1; // Time elapsed between measurements [sec]
     double sensor_range = 50; // Sensor range [m]
 
-    double sigma_pos[3] = {0.3, 0.3, 0.01}; // GPS measurement uncertainty [x [m], y [m], theta [rad]]
-    double sigma_landmark[2] = {0.3, 0.3};  // Landmark measurement uncertainty [x [m], y [m]]
+    double sigma_pos[3] = { 0.3, 0.3, 0.01 }; // GPS measurement uncertainty [x [m], y [m], theta [rad]]
+    double sigma_landmark[2] = { 0.3, 0.3 }; // Landmark measurement uncertainty [x [m], y [m]]
 
     // Read map data
     Map map;
-    if (!read_map_data("../data/map_data.txt", map))
-    {
+    if (!read_map_data("../data/map_data.txt", map)) {
         cout << "Error: Could not open map file" << endl;
         return -1;
     }
@@ -50,27 +46,23 @@ int main()
     // Create particle filter
     ParticleFilter pf;
 
-    h.onMessage([&pf, &map, &delta_t, &sensor_range, &sigma_pos, &sigma_landmark](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+    h.onMessage([&pf, &map, &delta_t, &sensor_range, &sigma_pos, &sigma_landmark](uWS::WebSocket<uWS::SERVER> ws, char* data, size_t length, uWS::OpCode opCode) {
         // "42" at the start of the message means there's a websocket message event.
         // The 4 signifies a websocket message
         // The 2 signifies a websocket event
 
-        if (length && length > 2 && data[0] == '4' && data[1] == '2')
-        {
+        if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
             auto s = hasData(std::string(data));
-            if (s != "")
-            {
+            if (s != "") {
 
                 auto j = json::parse(s);
                 std::string event = j[0].get<std::string>();
 
-                if (event == "telemetry")
-                {
+                if (event == "telemetry") {
                     // j[1] is the data JSON object
 
-                    if (!pf.initialized())
-                    {
+                    if (!pf.initialized()) {
 
                         // Sense noisy position data from the simulator
                         double sense_x = std::stod(j[1]["sense_x"].get<std::string>());
@@ -78,9 +70,7 @@ int main()
                         double sense_theta = std::stod(j[1]["sense_theta"].get<std::string>());
 
                         pf.init(sense_x, sense_y, sense_theta, sigma_pos);
-                    }
-                    else
-                    {
+                    } else {
                         // Predict the vehicle's next state from previous (noiseless control) data.
                         double previous_velocity = std::stod(j[1]["previous_velocity"].get<std::string>());
                         double previous_yawrate = std::stod(j[1]["previous_yawrate"].get<std::string>());
@@ -98,18 +88,17 @@ int main()
                     std::istringstream iss_x(sense_observations_x);
 
                     std::copy(std::istream_iterator<float>(iss_x),
-                              std::istream_iterator<float>(),
-                              std::back_inserter(x_sense));
+                        std::istream_iterator<float>(),
+                        std::back_inserter(x_sense));
 
                     std::vector<float> y_sense;
                     std::istringstream iss_y(sense_observations_y);
 
                     std::copy(std::istream_iterator<float>(iss_y),
-                              std::istream_iterator<float>(),
-                              std::back_inserter(y_sense));
+                        std::istream_iterator<float>(),
+                        std::back_inserter(y_sense));
 
-                    for (int i = 0; i < x_sense.size(); i++)
-                    {
+                    for (int i = 0; i < x_sense.size(); i++) {
                         LandmarkObs obs;
                         obs.x = x_sense[i];
                         obs.y = y_sense[i];
@@ -126,10 +115,8 @@ int main()
                     double highest_weight = -1.0;
                     Particle best_particle;
                     double weight_sum = 0.0;
-                    for (int i = 0; i < num_particles; ++i)
-                    {
-                        if (particles[i].weight > highest_weight)
-                        {
+                    for (int i = 0; i < num_particles; ++i) {
+                        if (particles[i].weight > highest_weight) {
                             highest_weight = particles[i].weight;
                             best_particle = particles[i];
                         }
@@ -152,9 +139,7 @@ int main()
                     // std::cout << msg << std::endl;
                     ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
                 }
-            }
-            else
-            {
+            } else {
                 std::string msg = "42[\"manual\",{}]";
                 ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
             }
@@ -164,14 +149,11 @@ int main()
 
     // We don't need this since we're not using HTTP but if it's removed the program
     // doesn't compile :-(
-    h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data, size_t, size_t) {
+    h.onHttpRequest([](uWS::HttpResponse* res, uWS::HttpRequest req, char* data, size_t, size_t) {
         const std::string s = "<h1>Hello world!</h1>";
-        if (req.getUrl().valueLength == 1)
-        {
+        if (req.getUrl().valueLength == 1) {
             res->end(s.data(), s.length());
-        }
-        else
-        {
+        } else {
             // i guess this should be done more gracefully?
             res->end(nullptr, 0);
         }
@@ -181,18 +163,15 @@ int main()
         std::cout << "Connected!!!" << std::endl;
     });
 
-    h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, char *message, size_t length) {
+    h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, char* message, size_t length) {
         ws.close();
         std::cout << "Disconnected" << std::endl;
     });
 
     int port = 4567;
-    if (h.listen(port))
-    {
+    if (h.listen(port)) {
         std::cout << "Listening to port " << port << std::endl;
-    }
-    else
-    {
+    } else {
         std::cerr << "Failed to listen to port" << std::endl;
         return -1;
     }
