@@ -88,9 +88,9 @@ void ParticleFilter::dataAssociation(const std::vector<LandmarkObs>& predicted, 
         double obx = ob.x;
         double oby = ob.y;
 
-        double cdist = dist(predicted[cidx].x, predicted[cidx].y, obx, oby);
+        double cdist = dist(predicted[0].x, predicted[0].y, obx, oby);
         for (int i=1; i<predicted.size(); i++) {
-            double d = dist(predicted[cidx].x, predicted[cidx].y, obx, oby);
+            double d = dist(predicted[i].x, predicted[i].y, obx, oby);
             if (d < cdist) {
                 cdist = d;
                 cidx = i;
@@ -98,7 +98,9 @@ void ParticleFilter::dataAssociation(const std::vector<LandmarkObs>& predicted, 
         }
 
         particle.associations.push_back(cidx);
+        //std::cout << cidx << " " ;
     }
+    //std::cout << std::endl;
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
@@ -115,6 +117,15 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     //   3.33
     //   http://planning.cs.uiuc.edu/node99.html
 
+    std::vector<LandmarkObs> predicted; 
+    for (auto lm : map_landmarks.landmark_list) {
+        LandmarkObs predict_ob;
+        predict_ob.id = lm.id_i;
+        predict_ob.x = lm.x_f;
+        predict_ob.y = lm.y_f;
+        predicted.push_back(predict_ob);
+    }
+
     for (int i = 0; i < num_particles; ++i) {
         Particle& p = particles[i];
 
@@ -122,32 +133,31 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         double x = p.x;
         double y = p.y;
 
-        std::vector<LandmarkObs> predicted; 
-        for (auto lm : map_landmarks.landmark_list) {
-            LandmarkObs predict_ob;
-            predict_ob.id = lm.id_i;
-            predict_ob.x = lm.x_f * cos(theta) + lm.y_f * sin(theta) + (lm.x_f - x);
-            predict_ob.y = -lm.x_f * sin(theta) + lm.y_f * cos(theta) + (lm.y_f - y);
-            predicted.push_back(predict_ob);
+        std::vector<LandmarkObs> global_ob;
+
+        for (auto lob : observations) {
+            LandmarkObs gob;
+            gob.x = lob.x * cos(theta) - lob.y * sin(theta) + x;
+            gob.y = lob.x * sin(theta) + lob.y * cos(theta) + y;
+            global_ob.push_back(gob);
         }
 
-        dataAssociation(predicted, observations, p);
+        dataAssociation(predicted, global_ob, p);
 
-        //double total_prob = p.weight;
-        double total_prob = 1;
+        double total_prob = 0;
 
-        for (int obid = 0; obid < observations.size(); obid++) {
-            auto ob = observations[obid];
+        for (int obid = 0; obid < global_ob.size(); obid++) {
+            auto ob = global_ob[obid];
             auto pr = predicted[p.associations[obid]];
             double dx = ob.x - pr.x;
             double dy = ob.y - pr.y;
 
-            double std = std_landmark[0];
-            double px = 1.0/(std * 2.50662827463) * exp(- dx*dx /(2*std*std));
-            std = std_landmark[1];
-            double py = 1.0/(std * 2.50662827463) * exp(- dy*dy /(2*std*std));
+            double stdx = std_landmark[0];
+            double stdy = std_landmark[1];
+            double P = 1.0/(stdx * stdy * 6.2831853) * exp(-( (dx*dx) / (2*stdx*stdx) + (dy*dy) / (2*stdy*stdy)));
 
-            total_prob *= px * py;
+            // this should actually be total_prob *= p, but it becomes too small to computer, so Let's just use sum, which also works fine :)
+            total_prob += P;
         }
 
         p.weight = total_prob;
